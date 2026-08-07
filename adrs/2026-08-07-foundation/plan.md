@@ -1,0 +1,104 @@
+# Tardy - Meeting Bar Foundation Plan
+
+## Approach
+
+Build a single Rust binary that reads the user's calendars through Evolution Data Server (EDS) over session D-Bus, normalises the events into a shared in-memory model, and feeds that model to two consumers from one fetch loop: a Wayland layer-shell overlay built with iced, and a Waybar-style JSON line on stdout for the ashell custom module. Land the read path first as a standalone list subcommand to de-risk the D-Bus contract before any UI work.
+
+## Architecture
+
+
+```mermaid
+flowchart LR
+    subgraph EDS["Evolution Data Server (D-Bus)"]
+        SR[SourceRegistry\nSources5]
+        CF[CalendarFactory\nCalendar8]
+        CAL[Calendar subprocess]
+    end
+
+    POLLER[Poller]
+    EDS_CLIENT[eds_client]
+    PARSER[event_parser]
+    RESOLVER[conference_resolver]
+    STATE[(shared state)]
+    ASHELL[ashell_emitter]
+    OVERLAY[overlay iced]
+
+    POLLER --> EDS_CLIENT
+    EDS_CLIENT -->|GetManagedObjects| SR
+    EDS_CLIENT -->|OpenCalendar| CF
+    CF --> CAL
+    EDS_CLIENT -->|GetObjectList| CAL
+    EDS_CLIENT --> PARSER
+    PARSER --> RESOLVER
+    RESOLVER --> STATE
+    STATE --> ASHELL
+    STATE --> OVERLAY
+    OVERLAY -->|xdg-open| BROWSER[Browser]
+```
+
+## Technologies
+
+| Technology | Role |
+|------------|------|
+| Rust | Implementation language for the single binary |
+| zbus | Async D-Bus client for the EDS SourceRegistry and CalendarFactory interfaces |
+| tokio | Async runtime hosting the calendar poller and D-Bus calls |
+| iced | Wayland layer-shell overlay UI with buttons and hit-testing |
+| smithay-client-toolkit | Wayland client stack that iced uses for the layer-shell surface |
+| icalendar | iCalendar VEVENT parsing into the shared meeting model |
+| toml | Configuration file parsing for lookahead_days and related settings |
+| xdg-open | Launching the resolved conference URL in the default browser |
+
+## Components
+
+### eds_client
+
+Enumerate calendar sources and query events over D-Bus
+
+Wraps the version-suffixed EDS bus names (Sources5, Calendar8). Discovers enabled calendar sources via ObjectManager, opens each via CalendarFactory.OpenCalendar, and issues an occur-in-time-range GetObjectList query. Holds one live zbus connection so the spawned calendar subprocess stays addressable across both calls. Skips sources reporting awaiting-credentials.
+
+
+### event_parser
+
+Convert iCalendar VEVENT chunks into the shared Meeting model
+
+Parses summary, Dtstart/Dtend, description, location, url and recurrence rule into a Meeting struct used by both consumers.
+
+
+### conference_resolver
+
+Derive a join URL per meeting
+
+Prefers the VEVENT url, then scans description and location for known conference hosts (meet.google.com, zoom.us, teams.microsoft.com, webex.com), else marks the meeting as having no link.
+
+
+### poller
+
+Drive the refresh loop
+
+Runs on the tokio runtime, re-queries all enabled sources on an interval and on a start-time boundary, and pushes a fresh Meeting list to the shared state.
+
+
+### ashell_emitter
+
+Write the status summary to stdout
+
+Serialises the current meetings into a Waybar-style JSON object line and prints it each poll for the ashell custom module.
+
+
+### overlay
+
+Present the meetings in a layer-shell window
+
+An iced application showing the meeting list with a join button per meeting, positioned above tiled windows on all outputs. Clicking a join control invokes xdg-open on the resolved URL.
+
+
+## Data Flow
+
+The poller enumerates enabled calendar sources from EDS, opens each and issues a time-range query bounded by lookahead_days. Returned iCalendar chunks are parsed into Meeting values, conference links are resolved, and the resulting list is stored as the shared current state. On each poll the ashell emitter serialises that state to a stdout JSON line, and the iced overlay re-renders from the same state. A join click resolves to a URL and hands it to xdg-open.
+
+
+## Deployment
+
+Built as a single Rust binary. Run with no arguments it shows the overlay; a --ashell flag emits the status line instead. Configuration is read from a TOML file in the user config directory. The binary depends only on a running Evolution Data Server and the user's existing desktop calendar accounts; no OAuth client secret is bundled or prompted for.
+

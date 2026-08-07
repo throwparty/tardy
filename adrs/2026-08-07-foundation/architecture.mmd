@@ -1,0 +1,26 @@
+flowchart LR
+    subgraph EDS["Evolution Data Server (D-Bus)"]
+        SR[SourceRegistry\nSources5]
+        CF[CalendarFactory\nCalendar8]
+        CAL[Calendar subprocess]
+    end
+
+    POLLER[Poller]
+    EDS_CLIENT[eds_client]
+    PARSER[event_parser]
+    RESOLVER[conference_resolver]
+    STATE[(shared state)]
+    ASHELL[ashell_emitter]
+    OVERLAY[overlay iced]
+
+    POLLER --> EDS_CLIENT
+    EDS_CLIENT -->|GetManagedObjects| SR
+    EDS_CLIENT -->|OpenCalendar| CF
+    CF --> CAL
+    EDS_CLIENT -->|GetObjectList| CAL
+    EDS_CLIENT --> PARSER
+    PARSER --> RESOLVER
+    RESOLVER --> STATE
+    STATE --> ASHELL
+    STATE --> OVERLAY
+    OVERLAY -->|xdg-open| BROWSER[Browser]

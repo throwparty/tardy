@@ -1,0 +1,36 @@
+title: Tardy - Meeting Bar Foundation
+status: draft
+created: 2026-08-07
+author: Luke Carrier
+context: Tardy is a Linux analogue of the Meeting Bar app usually seen on macOS. It keeps sight of the user's upcoming meetings and offers a single control to jump straight into whichever meeting service hosts a given meeting. Tardy presents two views of the same surface. A persistent overlay sits above the user's other windows so the schedule is never missed. A compact one-line summary sits in the desktop's status area for at-a-glance awareness. The user's meetings come from the calendar accounts they have already registered on the machine, so Tardy works with whatever calendar setup the desktop already knows about rather than requiring the user to configure or authorise anything new inside the app. A meeting's join control always opens the correct service for that meeting, no matter which provider is hosting it.
+problem: The user frequently runs late to meetings because there is no lightweight at-a-glance view of the day's meetings on their desktop with one-click join
+goals[3]:
+  - Surface the user's upcoming meetings for a configurable lookahead window
+  - Provide a persistent overlay above all windows with a per-meeting join control
+  - Keep the user informed without any per-app account setup; the machine's existing calendars are used as-is
+nonGoals[3]:
+  - This ADR covers the foundation only, not packed distribution or packaging
+  - No modification of the user's calendars; Tardy only reads them
+  - No in-app login or credential entry; only calendars the desktop already knows are surfaced
+requirements[7]{id,title,slug,description}:
+  FR-001,Show Upcoming Meetings,show-upcoming-meetings,"The app displays the user's meetings from the calendar accounts available on the machine, restricted to a configurable lookahead window"
+  FR-002,Configurable Lookahead,lookahead-days,"The user can configure how many days ahead meetings are shown, defaulting to 5 days"
+  FR-003,Height Over Other Windows,overlay-above,"A persistent on-screen panel shows the meetings and stays above all other windows on every attached display"
+  FR-004,Join A Meeting,join-meeting,"Each meeting offers a control that launches the meeting, opening the correct service regardless of the conference provider"
+  FR-005,Text Status Summary,status-summary,"The app maintains a short text summary of the upcoming meetings for display in the desktop status area"
+  FR-006,Automatic Refresh,automatic-refresh,"Upcoming meetings refresh automatically so that the panel promptly reflects new, changed or started meetings, including a meeting approaching its start time"
+  FR-007,Meeting Without A Link,no-link,"A meeting that offers no usable join link is still shown, with its join control visibly disabled"
+nonFunctional[3]{id,title,slug,description}:
+  NFR-001,Provider Agnostic,provider-agnostic,"Joining works for the meeting services the user's calendars reference, not only for one specific vendor"
+  NFR-002,Runs Without New Auth,no-new-auth,"The app runs using the calendar credentials the desktop already holds; it surfaces what it can even when one account's calendar cannot be reached and it never demand that the user enter a fresh sign-in solely for Tardy"
+  NFR-003,Resilient To Missing Data,resilient,"If a calendar account cannot be read the app stays up, continues to show the calendars it can, and recovers once the blocked account is available"
+acceptance[5]{id,title,slug,description}:
+  AC-001,Shows Registered Calendars,shows-calendars,"With a desktop-confirmed Google calendar, the app enumerates and shows that calendar's meetings for the lookahead window"
+  AC-002,Join Opens Service,join-opens-service,"Activating a meeting's join control launches the meeting's own service such that the user lands in the meeting"
+  AC-003,Overlay Raised Amply,overlay-raised,"The panel is visible above all other windows on each attached display without any interleaving window action"
+  AC-004,Lookahead Configurable,lookahead-configurable,"Changing the configured lookahead changes the set of meetings surfaced"
+  AC-005,Unavailable Account Safe,unavailable-account-safe,"With a calendar account that cannot be refreshed, the app stays functional, shows an explicit empty state, and recovers when the account is back"
+edgeCases[3]{id,title,slug,description}:
+  EC-001,No Calendars Available,no-calendars,"The panel and the status summary both show a clear empty state and remain ready to update"
+  EC-002,Meeting Without A Link,meeting-no-link,"If a meeting cannot yield a usable join link its join control is disabled but the meeting is still shown"
+  EC-003,Account Drops Mid-Refresh,account-drop,"When a calendar account becomes unavailable at refresh time the partial list from the other calendars is still shown and the account is retried"
