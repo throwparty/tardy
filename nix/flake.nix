@@ -47,6 +47,7 @@
               libxkbcommon
               mdformat
               nixfmt
+              pkg-config
               wayland
               ;
             toolVersions = mkToolVersions {
@@ -55,6 +56,7 @@
               commands = ''
                 ${getExe mdformat} --version
                 ${getExe nixfmt} --version
+                ${getExe pkg-config} --version
                 ${getExe' rustToolchain "cargo"} --version
                 ${getExe' rustToolchain "rustc"} --version
                 printf "cargo-binstall %s\n" "$(${getExe cargo-binstall} --version 2>/dev/null || true)"
@@ -71,6 +73,7 @@
                 cargo-deny
                 mdformat
                 nixfmt
+                pkg-config
                 rustToolchain
               ];
               shellHook = ''
@@ -86,32 +89,42 @@
             tools
           ];
 
-        packages.tardy = pkgs.rustPlatform.buildRustPackage rec {
-          pname = "tardy";
-          version = "0.1.0";
+        packages.default =
+          (pkgs.makeRustPlatform {
+            cargo = rustToolchain;
+            rustc = rustToolchain;
+          }).buildRustPackage
+            rec {
+              pname = "tardy";
+              version = "0.1.0";
 
-          src = ../.;
+              src = ../.;
 
-          nativeBuildInputs = [
-            pkgs.pkg-config
-            pkgs.wayland
-            pkgs.libxkbcommon
-          ];
-          buildInputs = [
-            pkgs.wayland
-            pkgs.libxkbcommon
-          ];
-          cargoHash = "sha256-8f6fkrk1TDKvgAeljN4kNkXMSVcmkMRYzW62oVKKkKA=";
+              nativeBuildInputs = [
+                pkgs.makeWrapper
+                pkgs.pkg-config
+                pkgs.wayland
+                pkgs.libxkbcommon
+              ];
+              buildInputs = [
+                pkgs.wayland
+                pkgs.libxkbcommon
+              ];
+              cargoHash = "sha256-wZYF1YNKSBIUQR+hZOvT6a6mbJk0fdqpxM/CyrxL10I=";
 
-          meta = {
-            description = "Never be late to meetings again";
-            license = pkgs.lib.licenses.mit;
-            mainProgram = "tardy";
-          };
-        };
+              postInstall = ''
+                wrapProgram $out/bin/tardy \
+                  --prefix LD_LIBRARY_PATH : ${pkgs.wayland}/lib:${pkgs.libxkbcommon}/lib
+              '';
 
-        packages.default = self.packages.${system}.tardy;
-        checks.default = self.packages.${system}.tardy;
+              meta = {
+                description = "Never be late to meetings again";
+                license = pkgs.lib.licenses.mit;
+                mainProgram = "tardy";
+              };
+            };
+
+        checks.default = self.packages.${system}.default;
       }
     )
     // {

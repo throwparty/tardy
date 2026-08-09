@@ -9,7 +9,7 @@ list:
 # Lint the tree.
 lint:
     nix --extra-experimental-features 'nix-command flakes' flake show {{source_directory()}}
-    nix --extra-experimental-features 'nix-command flakes' build {{source_directory()}}#tardy.cargoDeps --no-link
+    nix --extra-experimental-features 'nix-command flakes' build {{source_directory()}}#default.cargoDeps --no-link
 
 # Update Cargo hash.
 update-hash:
