@@ -54,11 +54,9 @@ impl App {
                 if let Some(url) = conference::join_url(&self.meeting) {
                     let _ = std::process::Command::new("xdg-open").arg(url).spawn();
                 }
-                std::process::exit(0);
+                iced::exit()
             }
-            Message::Dismiss => {
-                std::process::exit(0);
-            }
+            Message::Dismiss => iced::exit(),
         }
     }
 
