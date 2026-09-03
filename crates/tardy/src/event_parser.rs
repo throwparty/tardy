@@ -185,3 +185,31 @@ fn parse_dt(value: Option<&str>) -> Option<DateTime<Utc>> {
     let local = chrono::Local;
     Some(local.from_local_datetime(&naive).single()?.with_timezone(&Utc))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Timelike};
+
+    #[test]
+    fn test_parse_icalendar_tzid() {
+        let ical = "BEGIN:VCALENDAR\n\
+            BEGIN:VEVENT\n\
+            UID:123\n\
+            SUMMARY:Test Meeting\n\
+            DTSTART;TZID=Europe/London:20260601T151500\n\
+            DTEND;TZID=Europe/London:20260601T161500\n\
+            END:VEVENT\n\
+            END:VCALENDAR";
+
+        let range_start = Utc.with_ymd_and_hms(2026, 6, 1, 0, 0, 0).unwrap();
+        let range_end = Utc.with_ymd_and_hms(2026, 6, 1, 23, 59, 59).unwrap();
+
+        let meetings = parse_icalendar(ical, range_start, range_end);
+        assert_eq!(meetings.len(), 1);
+        let start = meetings[0].start.unwrap();
+        // 15:15 in BST (UTC+1) is 14:15 UTC
+        assert_eq!(start.hour(), 14);
+        assert_eq!(start.minute(), 15);
+    }
+}
