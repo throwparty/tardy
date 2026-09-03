@@ -30,8 +30,8 @@ pub fn parse_icalendar(
     let base = Meeting {
         uid,
         summary,
-        start: parse_dt(event.property_value("DTSTART")),
-        end: parse_dt(event.property_value("DTEND")),
+        start: parse_dt(event, "DTSTART"),
+        end: parse_dt(event, "DTEND"),
         description,
         location,
         url,
@@ -164,8 +164,8 @@ fn extract_described_url(description: Option<&str>) -> Option<String> {
     fallback
 }
 
-fn parse_dt(value: Option<&str>) -> Option<DateTime<Utc>> {
-    let value = value?;
+fn parse_dt(event: &icalendar::Event, name: &str) -> Option<DateTime<Utc>> {
+    let value = event.property_value(name)?;
 
     // All-day event (no time component).
     if let Ok(date) = NaiveDate::parse_from_str(value, "%Y%m%d") {
@@ -174,16 +174,11 @@ fn parse_dt(value: Option<&str>) -> Option<DateTime<Utc>> {
         return Some(local.from_local_datetime(&naive).single()?.with_timezone(&Utc));
     }
 
-    // UTC-suffixed timestamp.
-    if let Some(stripped) = value.strip_suffix('Z') {
-        let naive = NaiveDateTime::parse_from_str(stripped, "%Y%m%dT%H%M%S").ok()?;
-        return Some(Utc.from_utc_datetime(&naive));
-    }
-
-    // Floating local time, treat as local.
-    let naive = NaiveDateTime::parse_from_str(value, "%Y%m%dT%H%M%S").ok()?;
-    let local = chrono::Local;
-    Some(local.from_local_datetime(&naive).single()?.with_timezone(&Utc))
+    let naive = parse_naive(value)?;
+    let tz = property_tz(event, name);
+    tz.from_local_datetime(&naive)
+        .earliest()
+        .map(|dt| dt.with_timezone(&Utc))
 }
 
 #[cfg(test)]
