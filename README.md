@@ -41,6 +41,10 @@ every poll, showing the next meeting in `text` (plus `class`, `tooltip`, and a
 date-grouped tooltip; `alt` is emitted for ashell). Wire it into a waybar/ashell
 custom module.
 
+All-day events (holidays, out-of-office, birthdays) are listed in the tooltip
+but never occupy the one-line text, never mark the module live, and never pop
+the takeover — otherwise a single bank holiday would own your bar all day.
+
 #### ashell
 
 ```toml

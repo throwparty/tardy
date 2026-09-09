@@ -62,7 +62,7 @@ Wraps the version-suffixed EDS bus names (Sources5, Calendar8). Discovers enable
 
 Convert iCalendar VEVENT chunks into the shared Meeting model
 
-Parses summary, Dtstart/Dtend, description, location, url and recurrence rule into a Meeting struct used by both consumers.
+Parses summary, Dtstart/Dtend, description, location, url and recurrence rule into a Meeting struct used by both consumers. A DATE-valued (VALUE=DATE, no time component) Dtstart sets an all_day flag on the Meeting so consumers can filter without re-inspecting the iCalendar text.
 
 
 ### conference_resolver
@@ -83,19 +83,19 @@ Runs on the tokio runtime, re-queries all enabled sources on an interval and on 
 
 Write the status summary to stdout
 
-Serialises the current meetings into a Waybar-style JSON object line and prints it each poll for the ashell custom module.
+Serialises the current meetings into a Waybar-style JSON object line and prints it each poll for the ashell custom module. All-day meetings are rendered in the tooltip along with timed ones, but are skipped when picking the current/next meeting that drives the one-line text and its state class, so an all-day entry can never occupy the bar.
 
 
 ### overlay
 
 Present the meetings in a layer-shell window
 
-An iced application showing the meeting list with a join button per meeting, positioned above tiled windows on all outputs. Clicking a join control invokes xdg-open on the resolved URL.
+An iced application showing the meeting list with a join button per meeting, positioned above tiled windows on all outputs. Clicking a join control invokes xdg-open on the resolved URL. All-day meetings are excluded from the overlay entirely; they neither list nor trigger it.
 
 
 ## Data Flow
 
-The poller enumerates enabled calendar sources from EDS, opens each and issues a time-range query bounded by lookahead_days. Returned iCalendar chunks are parsed into Meeting values, conference links are resolved, and the resulting list is stored as the shared current state. On each poll the ashell emitter serialises that state to a stdout JSON line, and the iced overlay re-renders from the same state. A join click resolves to a URL and hands it to xdg-open.
+The poller enumerates enabled calendar sources from EDS, opens each and issues a time-range query bounded by lookahead_days. Returned iCalendar chunks are parsed into Meeting values (including the all_day flag), conference links are resolved, and the resulting list is stored as the shared current state. All-day filtering happens at the consumers rather than in the shared state, so both surfaces read one list: the ashell emitter serialises every meeting into the tooltip but only timed meetings into the one-line text and class, and the iced overlay renders and triggers on timed meetings only. A join click resolves to a URL and hands it to xdg-open.
 
 
 ## Deployment

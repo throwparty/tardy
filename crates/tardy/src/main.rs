@@ -131,7 +131,7 @@ async fn daemon(
             println!("{}", waybar::render(&meetings, now));
         }
 
-        for meeting in meetings.iter().filter(|m| is_live(m, now)) {
+        for meeting in meetings.iter().filter(|m| m.is_ongoing(now)) {
             if recorded.contains(&dedupe_key(&meeting.uid)) {
                 continue;
             }
@@ -165,6 +165,7 @@ fn demo_meeting() -> model::Meeting {
         location: None,
         url: Some("https://meet.google.com/abc-defg-hij".to_string()),
         rrule: None,
+        all_day: false,
     }
 }
 
@@ -176,10 +177,6 @@ fn open_meeting(meeting: &model::Meeting) -> Result<(), Error> {
     };
     std::process::Command::new("xdg-open").arg(url).spawn()?;
     Ok(())
-}
-
-fn is_live(meeting: &model::Meeting, now: chrono::DateTime<Utc>) -> bool {
-    matches!((meeting.start, meeting.end), (Some(s), Some(e)) if s <= now && now <= e)
 }
 
 async fn fetch_meetings(

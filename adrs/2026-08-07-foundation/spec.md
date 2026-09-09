@@ -2,7 +2,7 @@
 
 **Status:** draft  **Created:** 2026-08-07  **Author:** Luke Carrier
 
-Tardy is a Linux analogue of the Meeting Bar app usually seen on macOS. It keeps sight of the user's upcoming meetings and offers a single control to jump straight into whichever meeting service hosts a given meeting. Tardy presents two views of the same surface. A persistent overlay sits above the user's other windows so the schedule is never missed. A compact one-line summary sits in the desktop's status area for at-a-glance awareness. The user's meetings come from the calendar accounts they have already registered on the machine, so Tardy works with whatever calendar setup the desktop already knows about rather than requiring the user to configure or authorise anything new inside the app. A meeting's join control always opens the correct service for that meeting, no matter which provider is hosting it.
+Tardy is a Linux analogue of the Meeting Bar app usually seen on macOS. It keeps sight of the user's upcoming meetings and offers a single control to jump straight into whichever meeting service hosts a given meeting. Tardy presents two views of the same surface. A persistent overlay sits above the user's other windows so the schedule is never missed. A compact one-line summary sits in the desktop's status area for at-a-glance awareness, with a fuller day-grouped tooltip behind it. The user's meetings come from the calendar accounts they have already registered on the machine, so Tardy works with whatever calendar setup the desktop already knows about rather than requiring the user to configure or authorise anything new inside the app. A meeting's join control always opens the correct service for that meeting, no matter which provider is hosting it. All-day entries such as holidays, out-of-office and birthdays are schedule context rather than something to join, so they belong in the tooltip only and must never claim the one-line summary or interrupt the user with an overlay.
 
 
 ## Problem
@@ -58,7 +58,7 @@ Each meeting offers a control that launches the meeting, opening the correct ser
 
 ### FR-005: Text Status Summary
 
-The app maintains a short text summary of the upcoming meetings for display in the desktop status area
+The app maintains a short text summary of the current or next meeting for display in the desktop status area, backed by a day-grouped tooltip listing the whole lookahead window
 
 **Slug:** `status-summary`
 
@@ -73,6 +73,12 @@ Upcoming meetings refresh automatically so that the panel promptly reflects new,
 A meeting that offers no usable join link is still shown, with its join control visibly disabled
 
 **Slug:** `no-link`
+
+### FR-008: All-Day Events In Tooltip Only
+
+All-day events are listed in the tooltip alongside timed meetings, but are never chosen as the current or next meeting in the one-line status summary and never trigger the overlay
+
+**Slug:** `all-day-tooltip-only`
 
 ## Non-functional Requirements
 
@@ -126,6 +132,12 @@ With a calendar account that cannot be refreshed, the app stays functional, show
 
 **Slug:** `unavailable-account-safe`
 
+### AC-006: All-Day Event Stays In Tooltip
+
+With an all-day event spanning a day that also holds a timed meeting, the tooltip lists both, the one-line summary shows only the timed meeting, and the all-day event raises no overlay when its day begins
+
+**Slug:** `all-day-tooltip-verified`
+
 ## Edge Cases
 
 ### EC-001: No Calendars Available
@@ -149,4 +161,12 @@ If a meeting cannot yield a usable join link its join control is disabled but th
 When a calendar account becomes unavailable at refresh time the partial list from the other calendars is still shown and the account is retried
 
 **Slug:** `account-drop`
+
+## Edge Cases
+
+### EC-004: Only All-Day Events Ahead
+
+When the lookahead window holds nothing but all-day events the tooltip still lists them while the one-line summary shows its empty state and no overlay is raised
+
+**Slug:** `all-day-only`
 

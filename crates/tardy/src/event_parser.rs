@@ -36,6 +36,7 @@ pub fn parse_icalendar(
         location,
         url,
         rrule: non_empty(event.property_value("RRULE")),
+        all_day: is_all_day(event),
     };
 
     let Some(rrule) = base.rrule.clone() else {
@@ -123,6 +124,21 @@ fn property_tz(event: &icalendar::Event, name: &str) -> Tz {
     Tz::from(Local)
 }
 
+/// Date-valued DTSTART (`DTSTART;VALUE=DATE:20260807`) marks an all-day event.
+/// Some backends drop the parameter, so fall back to the value's shape.
+fn is_all_day(event: &icalendar::Event) -> bool {
+    let date_valued = event
+        .properties()
+        .get("DTSTART")
+        .and_then(|prop| prop.params().get("VALUE"))
+        .is_some_and(|param| param.value().eq_ignore_ascii_case("DATE"));
+
+    date_valued
+        || event
+            .property_value("DTSTART")
+            .is_some_and(|value| NaiveDate::parse_from_str(value, "%Y%m%d").is_ok())
+}
+
 fn parse_naive(value: &str) -> Option<NaiveDateTime> {
     if let Ok(date) = NaiveDate::parse_from_str(value, "%Y%m%d") {
         return date.and_hms_opt(0, 0, 0);
@@ -206,5 +222,52 @@ mod tests {
         // 15:15 in BST (UTC+1) is 14:15 UTC
         assert_eq!(start.hour(), 14);
         assert_eq!(start.minute(), 15);
+    }
+
+    fn parse(vevent: &str) -> Vec<Meeting> {
+        let ical = format!("BEGIN:VCALENDAR\nVERSION:2.0\n{vevent}\nEND:VCALENDAR\n");
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let end = Utc.with_ymd_and_hms(2026, 8, 14, 0, 0, 0).unwrap();
+        parse_icalendar(&ical, start, end)
+    }
+
+    #[test]
+    fn date_valued_dtstart_is_all_day() {
+        let meetings = parse(
+            "BEGIN:VEVENT\nUID:holiday\nSUMMARY:Bank Holiday\nDTSTART;VALUE=DATE:20260807\nDTEND;VALUE=DATE:20260808\nEND:VEVENT",
+        );
+
+        assert_eq!(meetings.len(), 1);
+        assert!(meetings[0].all_day);
+    }
+
+    #[test]
+    fn bare_date_dtstart_is_all_day() {
+        let meetings = parse(
+            "BEGIN:VEVENT\nUID:holiday\nSUMMARY:Bank Holiday\nDTSTART:20260807\nDTEND:20260808\nEND:VEVENT",
+        );
+
+        assert_eq!(meetings.len(), 1);
+        assert!(meetings[0].all_day);
+    }
+
+    #[test]
+    fn timed_dtstart_is_not_all_day() {
+        let meetings = parse(
+            "BEGIN:VEVENT\nUID:standup\nSUMMARY:Standup\nDTSTART:20260807T090000Z\nDTEND:20260807T091500Z\nEND:VEVENT",
+        );
+
+        assert_eq!(meetings.len(), 1);
+        assert!(!meetings[0].all_day);
+    }
+
+    #[test]
+    fn recurring_all_day_keeps_the_flag() {
+        let meetings = parse(
+            "BEGIN:VEVENT\nUID:birthday\nSUMMARY:Birthday\nDTSTART;VALUE=DATE:20260807\nDTEND;VALUE=DATE:20260808\nRRULE:FREQ=DAILY;COUNT=3\nEND:VEVENT",
+        );
+
+        assert!(!meetings.is_empty());
+        assert!(meetings.iter().all(|m| m.all_day));
     }
 }
