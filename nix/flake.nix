@@ -129,7 +129,7 @@
     )
     // {
       overlays.default = final: prev: {
-        tardy = self.packages.${final.system}.default;
+        tardy = self.packages.${final.stdenv.hostPlatform.system}.default;
       };
     };
 }
